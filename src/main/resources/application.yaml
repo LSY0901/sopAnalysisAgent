@@ -1,0 +1,44 @@
+server:
+  port: 9001
+
+spring:
+  application:
+    name: SopAnalysisAgent
+  datasource:
+    url: jdbc:postgresql://localhost:5432/agent_db?options=-c%20search_path%3Dagent%2Cpublic
+    username: agent_user
+    password: 123456
+  ai:
+      openai:
+#      base-url: http://localhost:11434
+#      api-key: 123456
+#      chat:
+#        options:
+#          model: Qwen3.5-9B-IQ4_NL.gguf
+        base-url: https://api.deepseek.com
+        api-key: sk-XXXX
+        chat:
+          options:
+            model: deepseek-v4-pro
+            temperature: 0.2
+
+
+embedding:
+  base-url: http://localhost:8082
+  model: bge-reranker-base
+
+
+rerank:
+  base-url: http://localhost:8083
+  model: bge-reranker-base
+
+logging:
+  level:
+    org.springframework.ai: debug
+    org.springframework.ai.openai: DEBUG
+    org.springframework.ai.chat.client.advisor: DEBUG
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    mapper-locations: classpath:/mapper/*.xml
