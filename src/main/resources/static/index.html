@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOP 智能助手</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶栏 */
+        header {
+            background: #fff;
+            border-bottom: 1px solid #e4e7ed;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2d3d;
+        }
+        header .badge {
+            font-size: 12px;
+            color: #909399;
+            background: #f4f4f5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+        .toolbar { display: flex; align-items: center; gap: 12px; }
+
+        /* 主体 */
+        main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧：上传区 */
+        aside {
+            width: 320px;
+            background: #fff;
+            border-right: 1px solid #e4e7ed;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        aside h2 {
+            font-size: 15px;
+            margin-bottom: 14px;
+            color: #1f2d3d;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .drop-zone {
+            border: 2px dashed #c0c4cc;
+            border-radius: 8px;
+            padding: 28px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #909399;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #409eff;
+            background: #ecf5ff;
+            color: #409eff;
+        }
+        .drop-zone .icon { font-size: 28px; display: block; margin-bottom: 8px; }
+        .drop-zone .hint { font-size: 12px; }
+
+        .file-list { margin-top: 14px; flex: 1; }
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            background: #f9fafc;
+            border: 1px solid #ebeef5;
+        }
+        .file-item .name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            margin-right: 8px;
+        }
+        .file-item .status { font-size: 12px; white-space: nowrap; }
+        .status.uploading { color: #e6a23c; }
+        .status.success { color: #67c23a; }
+        .status.error { color: #f56c6c; }
+
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.15s;
+        }
+        button:disabled { cursor: not-allowed; opacity: 0.6; }
+        .btn-primary {
+            background: #409eff;
+            color: #fff;
+            padding: 9px 18px;
+        }
+        .btn-primary:hover:not(:disabled) { background: #66b1ff; }
+        .btn-upload {
+            width: 100%;
+            margin-top: 12px;
+            padding: 10px;
+            background: #67c23a;
+            color: #fff;
+        }
+        .btn-upload:hover:not(:disabled) { background: #85ce61; }
+        .btn-ghost {
+            background: #f4f4f5;
+            color: #606266;
+            padding: 7px 14px;
+            font-size: 13px;
+        }
+        .btn-ghost:hover:not(:disabled) { background: #e9e9eb; }
+
+        /* 右侧：对话区 */
+        section.chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #f5f7fa;
+        }
+        .session-bar {
+            padding: 10px 20px;
+            background: #fff;
+            border-bottom: 1px solid #e4e7ed;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+        .session-bar label { color: #909399; }
+        .session-bar input {
+            flex: 1;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+        .session-bar input:focus { outline: none; border-color: #409eff; }
+        .mode-switch { display: flex; gap: 6px; }
+        .mode-switch button {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #f4f4f5;
+            color: #606266;
+        }
+        .mode-switch button.active {
+            background: #409eff;
+            color: #fff;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .msg {
+            max-width: 75%;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        .msg.user { margin-left: auto; align-items: flex-end; }
+        .msg.assistant { margin-right: auto; align-items: flex-start; }
+        .msg .role {
+            font-size: 11px;
+            color: #909399;
+            margin-bottom: 4px;
+            padding: 0 4px;
+        }
+        .msg .bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .msg.user .bubble {
+            background: #409eff;
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .msg.assistant .bubble {
+            background: #fff;
+            color: #2c3e50;
+            border: 1px solid #ebeef5;
+            border-bottom-left-radius: 4px;
+        }
+        .msg .bubble.error {
+            background: #fef0f0;
+            color: #f56c6c;
+            border-color: #fde2e2;
+        }
+        .typing-cursor {
+            display: inline-block;
+            width: 7px;
+            height: 15px;
+            background: #409eff;
+            margin-left: 2px;
+            vertical-align: middle;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .empty-state {
+            text-align: center;
+            color: #c0c4cc;
+            padding: 80px 20px;
+        }
+        .empty-state .big { font-size: 42px; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; }
+
+        /* 输入栏 */
+        .input-bar {
+            padding: 14px 20px;
+            background: #fff;
+            border-top: 1px solid #e4e7ed;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .input-bar textarea {
+            flex: 1;
+            border: 1px solid #dcdfe6;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            line-height: 1.5;
+        }
+        .input-bar textarea:focus { outline: none; border-color: #409eff; }
+        .input-bar .send {
+            padding: 11px 22px;
+            background: #409eff;
+            color: #fff;
+            font-weight: 500;
+        }
+        .input-bar .send:hover:not(:disabled) { background: #66b1ff; }
+
+        /* 提示 toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background: #67c23a; }
+        .toast.error { background: #f56c6c; }
+    </style>
+</head>
+<body>
+    <header>
+        <div style="display:flex;align-items:center;">
+            <h1>SOP 智能助手</h1>
+            <span class="badge">知识问答</span>
+        </div>
+        <div class="toolbar">
+            <span id="connStatus" style="font-size:12px;color:#909399;">就绪</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- 左侧上传 -->
+        <aside>
+            <h2>📄 知识库文档</h2>
+            <div class="drop-zone" id="dropZone">
+                <span class="icon">⬆️</span>
+                <div>点击选择或拖拽文件到此处</div>
+                <div class="hint" style="margin-top:6px;">支持 PDF / Word / TXT 等</div>
+                <input type="file" id="fileInput" multiple style="display:none;">
+            </div>
+            <button class="btn-upload" id="btnUploadAll" disabled>上传到知识库</button>
+
+            <div class="file-list" id="fileList"></div>
+        </aside>
+
+        <!-- 右侧对话 -->
+        <section class="chat">
+            <div class="session-bar">
+                <label>会话ID</label>
+                <input type="text" id="sessionId" placeholder="留空则自动新建">
+                <button class="btn-ghost" id="btnNewSession">新建会话</button>
+                <div class="mode-switch">
+                    <button id="modeStream" class="active">流式</button>
+                    <button id="modeSync">同步</button>
+                </div>
+            </div>
+
+            <div class="messages" id="messages">
+                <div class="empty-state" id="emptyState">
+                    <div class="big">💬</div>
+                    <p>先在左侧上传 SOP 文档，然后在这里提问</p>
+                </div>
+            </div>
+
+            <div class="input-bar">
+                <textarea id="queryInput" placeholder="输入你的问题，Enter 发送，Shift+Enter 换行" rows="1"></textarea>
+                <button class="send" id="btnSend">发送</button>
+            </div>
+        </section>
+    </main>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:9002';  // 例: 'http://localhost:8087'
+        // ============================
+
+        const BASE = API_BASE.replace(/\/+$/, '');
+        let pendingFiles = []; // 待上传文件
+        let uploadedCount = 0;
+        let isStreaming = false;
+        let currentMode = 'stream'; // 'stream' | 'sync'
+
+        // ---------- Toast ----------
+        const toastEl = document.getElementById('toast');
+        let toastTimer;
+        function toast(msg, type = 'success') {
+            toastEl.textContent = msg;
+            toastEl.className = 'toast show ' + type;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2600);
+        }
+
+        // ---------- 上传相关 ----------
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileListEl = document.getElementById('fileList');
+        const btnUploadAll = document.getElementById('btnUploadAll');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', e => addFiles(e.target.files));
+
+        ['dragenter', 'dragover'].forEach(ev =>
+            dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragover'); }));
+        ['dragleave', 'drop'].forEach(ev =>
+            dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragover'); }));
+        dropZone.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+
+        function addFiles(fileList) {
+            for (const f of fileList) {
+                pendingFiles.push({ file: f, status: 'pending' });
+            }
+            fileInput.value = '';
+            renderFileList();
+            btnUploadAll.disabled = pendingFiles.length === 0;
+        }
+
+        function renderFileList() {
+            fileListEl.innerHTML = '';
+            pendingFiles.forEach((item, idx) => {
+                const el = document.createElement('div');
+                el.className = 'file-item';
+                const statusText = {
+                    pending: '⏳ 待上传',
+                    uploading: '⏳ 上传中',
+                    success: '✅ 完成',
+                    error: '❌ 失败'
+                }[item.status];
+                el.innerHTML = `
+                    <span class="name" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</span>
+                    <span class="status ${item.status === 'success' ? 'success' : item.status === 'error' ? 'error' : 'uploading'}">${statusText}</span>
+                `;
+                fileListEl.appendChild(el);
+            });
+        }
+
+        btnUploadAll.addEventListener('click', async () => {
+            if (pendingFiles.every(f => f.status !== 'pending')) {
+                toast('没有待上传的文件', 'error');
+                return;
+            }
+            btnUploadAll.disabled = true;
+            for (const item of pendingFiles) {
+                if (item.status !== 'pending') continue;
+                item.status = 'uploading';
+                renderFileList();
+                try {
+                    const fd = new FormData();
+                    fd.append('file', item.file);
+                    const resp = await fetch(BASE + '/chat/upload', { method: 'POST', body: fd });
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                    item.status = 'success';
+                    uploadedCount++;
+                } catch (e) {
+                    item.status = 'error';
+                    console.error(e);
+                }
+                renderFileList();
+            }
+            const ok = pendingFiles.filter(f => f.status === 'success').length;
+            const fail = pendingFiles.filter(f => f.status === 'error').length;
+            toast(`上传完成：成功 ${ok}${fail ? '，失败 ' + fail : ''}`, fail ? 'error' : 'success');
+            btnUploadAll.disabled = false;
+        });
+
+        // ---------- 对话相关 ----------
+        const messagesEl = document.getElementById('messages');
+        const emptyState = document.getElementById('emptyState');
+        const queryInput = document.getElementById('queryInput');
+        const btnSend = document.getElementById('btnSend');
+        const sessionIdInput = document.getElementById('sessionId');
+        const btnNewSession = document.getElementById('btnNewSession');
+        const connStatus = document.getElementById('connStatus');
+
+        // 模式切换
+        document.getElementById('modeStream').addEventListener('click', () => switchMode('stream'));
+        document.getElementById('modeSync').addEventListener('click', () => switchMode('sync'));
+        function switchMode(m) {
+            currentMode = m;
+            document.getElementById('modeStream').classList.toggle('active', m === 'stream');
+            document.getElementById('modeSync').classList.toggle('active', m === 'sync');
+        }
+
+        btnNewSession.addEventListener('click', () => {
+            sessionIdInput.value = '';
+            messagesEl.innerHTML = '';
+            messagesEl.appendChild(emptyState);
+            emptyState.style.display = '';
+            toast('已新建会话');
+        });
+
+        // 输入框自适应高度 + Enter 发送
+        queryInput.addEventListener('input', () => {
+            queryInput.style.height = 'auto';
+            queryInput.style.height = Math.min(queryInput.scrollHeight, 120) + 'px';
+        });
+        queryInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendQuery();
+            }
+        });
+        btnSend.addEventListener('click', sendQuery);
+
+        async function sendQuery() {
+            const query = queryInput.value.trim();
+            if (!query || isStreaming) return;
+            isStreaming = true;
+            btnSend.disabled = true;
+
+            if (emptyState.parentNode) emptyState.style.display = 'none';
+
+            // 渲染用户消息
+            appendMessage('user', query);
+
+            // 保留输入框内容，清空
+            queryInput.value = '';
+            queryInput.style.height = 'auto';
+
+            const sid = sessionIdInput.value.trim() || genId();
+            sessionIdInput.value = sid;
+
+            if (currentMode === 'stream') {
+                await streamChat(sid, query);
+            } else {
+                await syncChat(sid, query);
+            }
+
+            isStreaming = false;
+            btnSend.disabled = false;
+            queryInput.focus();
+        }
+
+        async function streamChat(sessionId, query) {
+            const assistantEl = appendMessage('assistant', '');
+            const bubble = assistantEl.querySelector('.bubble');
+            bubble.innerHTML = '<span class="typing-cursor"></span>';
+            connStatus.textContent = '接收中…';
+
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+
+            try {
+                const url = `${BASE}/chat/stream?sessionId=${encodeURIComponent(sessionId)}&query=${encodeURIComponent(query)}`;
+                const resp = await fetch(url, { signal: controller.signal });
+
+                if (!resp.ok) {
+                    const errText = await resp.text().catch(() => '');
+                    throw new Error(resp.status + ' ' + resp.statusText + (errText ? '\n' + errText : ''));
+                }
+                clearTimeout(timer);
+
+                const contentType = resp.headers.get('content-type') || '';
+
+                if (contentType.includes('text/event-stream')) {
+                    const reader = resp.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    let fullText = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const chunks = buffer.split('\n\n');
+                        buffer = chunks.pop();
+
+                        for (const chunk of chunks) {
+                            for (const line of chunk.split('\n')) {
+                                if (line.startsWith('data:')) {
+                                    const data = line.slice(5).trim();
+                                    if (data === '[DONE]') continue;
+                                    fullText += data;
+                                } else if (line.startsWith(':')) {
+                                    // SSE comment，忽略
+                                } else if (line.trim()) {
+                                    fullText += line;
+                                }
+                            }
+                        }
+
+                        bubble.textContent = fullText || '思考中...';
+                        scrollBottom();
+                    }
+
+                    // 处理 buffer 中剩余数据
+                    if (buffer.trim()) {
+                        for (const line of buffer.split('\n')) {
+                            if (line.startsWith('data:')) {
+                                const data = line.slice(5).trim();
+                                if (data !== '[DONE]') fullText += data;
+                            } else if (!line.startsWith(':') && line.trim()) {
+                                fullText += line;
+                            }
+                        }
+                        bubble.textContent = fullText;
+                    }
+
+                    if (!fullText) {
+                        bubble.textContent = '（无响应内容）';
+                    }
+                } else {
+                    // 非流式响应，按普通文本处理
+                    fullText = await resp.text();
+                    bubble.textContent = fullText || '（无响应内容）';
+                }
+            } catch (e) {
+                bubble.classList.add('error');
+                bubble.textContent = '请求失败：' + e.message;
+            } finally {
+                clearTimeout(timer);
+                connStatus.textContent = '就绪';
+            }
+        }
+
+        async function syncChat(sessionId, query) {
+            const assistantEl = appendMessage('assistant', '');
+            const bubble = assistantEl.querySelector('.bubble');
+            bubble.innerHTML = '<span class="typing-cursor"></span>';
+            connStatus.textContent = '请求中…';
+
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+
+            try {
+                const url = `${BASE}/chat?sessionId=${encodeURIComponent(sessionId)}&query=${encodeURIComponent(query)}`;
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    signal: controller.signal
+                });
+                if (!resp.ok) {
+                    const errText = await resp.text().catch(() => '');
+                    throw new Error(resp.status + ' ' + resp.statusText + (errText ? '\n' + errText : ''));
+                }
+                const body = await resp.json();
+                if (body.code !== 200) throw new Error(body.msg || '服务异常');
+                bubble.textContent = body.data.answer || '（无响应内容）';
+            } catch (e) {
+                bubble.classList.add('error');
+                bubble.textContent = '请求失败：' + e.message;
+            } finally {
+                clearTimeout(timer);
+                connStatus.textContent = '就绪';
+                scrollBottom();
+            }
+        }
+
+        // ---------- DOM 工具 ----------
+        function appendMessage(role, text) {
+            const el = document.createElement('div');
+            el.className = 'msg ' + role;
+            el.innerHTML = `
+                <div class="role">${role === 'user' ? '我' : 'SOP 助手'}</div>
+                <div class="bubble">${escapeHtml(text)}</div>
+            `;
+            messagesEl.appendChild(el);
+            scrollBottom();
+            return el;
+        }
+
+        function scrollBottom() {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s == null ? '' : s;
+            return d.innerHTML;
+        }
+
+        function genId() {
+            return 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        }
+    </script>
+</body>
+</html>

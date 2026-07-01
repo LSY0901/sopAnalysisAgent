@@ -7,7 +7,11 @@ import org.example.sopanalysisagent.model.dto.RagSearchReq;
 import org.example.sopanalysisagent.model.dto.RagSearchResp;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Collections;
@@ -44,6 +48,37 @@ public class PythonRagClient {
      * @param query 已改写的检索 query
      * @param topK  返回条数；为空时使用默认值
      */
+    /**
+     * 上传文件到 Python 侧进行解析入库（embedding 后写入向量库）。
+     * <p>
+     * 契约：POST {rag.base-url}/ingest <br>
+     * 请求体：multipart/form-data，字段名 file
+     *
+     * @param file 上传的 SOP 文档文件
+     * @return Python 服务返回的原始响应文本；调用失败时返回 null
+     */
+    public String ingest(MultipartFile file) {
+        try {
+            MultipartBodyBuilder builder = new MultipartBodyBuilder();
+            builder.part("file", file.getResource(),
+                    file.getContentType() == null ? MediaType.APPLICATION_OCTET_STREAM
+                            : MediaType.parseMediaType(file.getContentType()));
+            MultiValueMap<String, org.springframework.http.HttpEntity<?>> parts = builder.build();
+
+            return ragWebClient.post()
+                    .uri("/ingest")
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .bodyValue(parts)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (Exception e) {
+            log.error("上传文件到 RAG 服务失败 fileName={} size={}",
+                    file.getOriginalFilename(), file.getSize(), e);
+            return null;
+        }
+    }
+
     public List<RagResult> search(String query, Integer topK) {
         int k = (topK == null || topK <= 0) ? defaultTopK : topK;
         RagSearchReq req = new RagSearchReq(query, k);

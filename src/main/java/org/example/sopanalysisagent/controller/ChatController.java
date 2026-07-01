@@ -1,16 +1,19 @@
 package org.example.sopanalysisagent.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.sopanalysisagent.client.PythonRagClient;
 import org.example.sopanalysisagent.common.Result;
 import org.example.sopanalysisagent.workflow.SopWorkflow;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.Map;
@@ -25,6 +28,7 @@ import java.util.UUID;
 public class ChatController {
 
     private final SopWorkflow sopWorkflow;
+    private final PythonRagClient pythonRagClient;
 
     /**
      * 同步对话。
@@ -41,26 +45,33 @@ public class ChatController {
 
     /**
      * SSE 流式对话。
-     * 推荐用 GET + EventSource 接入；data 字段为答案增量文本。
+     * 返回 Flux&lt;String&gt;，Spring WebFlux 自动按 text/event-stream 格式输出 data: 行。
+     * 阻塞操作在 elastic 线程池中执行，避免阻塞 Tomcat NIO 线程。
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> stream(@RequestParam(required = false) String sessionId,
-                                                @RequestParam String query) {
+    public Flux<String> stream(@RequestParam(required = false) String sessionId,
+                                @RequestParam String query) {
         String sid = (sessionId == null || sessionId.isBlank()) ? UUID.randomUUID().toString() : sessionId;
-        return sopWorkflow.execute(sid, query)
-                .map(chunk -> ServerSentEvent.<String>builder()
-                        .event("message")
-                        .id(sid)
-                        .data(chunk)
-                        .build())
-                .concatWith(Flux.just(ServerSentEvent.<String>builder()
-                        .event("done")
-                        .id(sid)
-                        .data("[DONE]")
-                        .build()))
-                // 防止上游空闲断连
-                .mergeWith(Flux.interval(Duration.ofSeconds(15))
-                        .map(i -> ServerSentEvent.<String>builder().comment("keep-alive").build()))
-                .takeUntil(sse -> "done".equals(sse.event()));
+        return Mono.fromCallable(() -> sopWorkflow.execute(sid, query))
+                .flatMapMany(Flux::from)
+                .concatWithValues("[DONE]");
+    }
+
+    /**
+     * 上传 SOP 文档文件，转发给 Python 服务的 /ingest 接口解析入库。
+     *
+     * @param file multipart 文件，字段名 file
+     */
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<Map<String, Object>> upload(@RequestPart("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return Result.fail("文件不能为空");
+        }
+        String resp = pythonRagClient.ingest(file);
+        return Result.success(Map.of(
+                "fileName", file.getOriginalFilename(),
+                "size", file.getSize(),
+                "ingest", resp == null ? "" : resp
+        ));
     }
 }
