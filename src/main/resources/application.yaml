@@ -8,32 +8,38 @@ spring:
     url: jdbc:postgresql://localhost:5432/agent_db?options=-c%20search_path%3Dagent%2Cpublic
     username: agent_user
     password: 123456
-  ai:
-    openai:
-      base-url: https://dashscope.aliyuncs.com/compatible-mode
-      api-key: sk-XXX
-      chat:
-        options:
-          model: qwen3.7-plus
-          temperature: 0.2
 
-# MES / ERP 外部系统端点（占位，接入真实系统时替换）
+agentscope:
+  dashscope:
+    api-key: ${DASHSCOPE_API_KEY:sk-XXX}
+  agent:
+    name: sop-analysis-agent
+  a2a:
+    server:
+      enabled: true
+      card:
+        name: SOP Analysis Agent
+        description: SOP 问答与工单助手（rewrite → retrieve → answer）
+
+sop:
+  agent:
+    model: qwen-plus
+    temperature: 0.2
+    workspace: .agentscope/workspace
+
 mes:
   base-url: http://localhost:0
 erp:
   base-url: http://localhost:0
 
-# Python RAG 聚合检索服务：对外只暴露 /search 接口
-# embedding 与 rerank 由 Python 侧内部完成，Spring AI 不直接调用
 rag:
   base-url: http://localhost:8000
   top-k: 5
 
 logging:
   level:
-    org.springframework.ai: debug
-    org.springframework.ai.openai: DEBUG
-    org.springframework.ai.chat.client.advisor: DEBUG
+    org.example.sopanalysisagent: DEBUG
+    io.agentscope: INFO
 
 mybatis-plus:
   configuration:

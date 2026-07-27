@@ -20,8 +20,8 @@ import java.util.List;
 /**
  * 调用外部 Python RAG 聚合检索服务的客户端。
  * <p>
- * Python 服务对外只暴露一个检索接口；embedding 与 rerank 均在 Python 侧内部完成，
- * Spring AI 不直接调用 embedding/rerank。
+ * Python 服务对外只暴露检索与入库接口；embedding 与 rerank 均在 Python 侧内部完成，
+ * 本客户端不直接调用 embedding/rerank。
  * <p>
  * 契约（由本仓库定义，供 Python 侧实现）：<br>
  * POST {rag.base-url}/search <br>
