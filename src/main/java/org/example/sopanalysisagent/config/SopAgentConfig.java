@@ -1,5 +1,6 @@
 package org.example.sopanalysisagent.config;
 
+import io.agentscope.core.ReActAgent;
 import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.extensions.model.openai.OpenAIChatModel;
@@ -13,6 +14,7 @@ import org.example.sopanalysisagent.tool.SearchKnowledgeTool;
 import org.example.sopanalysisagent.util.PromptLoader;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 import java.nio.file.Paths;
 import java.util.List;
@@ -63,6 +65,20 @@ public class SopAgentConfig {
                         .keepMessages(10)
                         .build())
                 .build();
+    }
+
+    /**
+     * 供 A2A autoconfig 注入的 ReActAgent（HarnessAgent 内部 delegate）。
+     * <p>
+     * A2A starter 据此创建 AgentRunner；缺少该 Bean 会导致启动失败。
+     *
+     * @param harnessAgent HarnessAgent 单例
+     * @return ReActAgent delegate
+     */
+    @Bean
+    @Primary
+    public ReActAgent sopReActAgent(HarnessAgent harnessAgent) {
+        return harnessAgent.getDelegate();
     }
 
 }

@@ -24,10 +24,24 @@ public class WebClientConfig {
         return WebClient.builder().clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 
+    /**
+     * RAG 专用客户端：超时单独配置，避免 /search 冷启动被误杀。
+     *
+     * @param baseUrl            Python RAG 服务地址
+     * @param responseTimeoutSec 读超时秒数，默认 30
+     * @return ragWebClient
+     */
     @Bean("ragWebClient")
-    public WebClient ragWebClient(WebClient.Builder builder,
-                                  @Value("${rag.base-url}") String baseUrl) {
-        return builder.baseUrl(baseUrl).build();
+    public WebClient ragWebClient(
+            @Value("${rag.base-url}") String baseUrl,
+            @Value("${rag.response-timeout-seconds:30}") int responseTimeoutSec) {
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000)
+                .responseTimeout(Duration.ofSeconds(Math.max(1, responseTimeoutSec)));
+        return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .baseUrl(baseUrl)
+                .build();
     }
 
     @Bean("mesWebClient")

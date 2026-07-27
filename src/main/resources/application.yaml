@@ -1,5 +1,5 @@
 server:
-  port: 9002
+  port: 9003
 
 spring:
   application:
@@ -10,8 +10,10 @@ spring:
     password: 123456
 
 agentscope:
-  dashscope:
-    api-key: ${DASHSCOPE_API_KEY:sk-XXX}
+  openai:
+    api-key: sk-xxxxxx
+    base-url: https://api.deepseek.com
+    model-name: deepseek-v4-pro
   agent:
     name: sop-analysis-agent
   a2a:
@@ -34,6 +36,8 @@ erp:
 rag:
   base-url: http://localhost:8000
   top-k: 5
+  # Python /search 含 embedding+rerank，冷启动常 >5s；过短会误杀预检索
+  response-timeout-seconds: 30
 
 logging:
   level:

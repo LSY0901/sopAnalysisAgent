@@ -92,8 +92,35 @@ public class PythonRagClient {
             List<RagResult> results = resp == null ? null : resp.getResults();
             return results == null ? Collections.emptyList() : results;
         } catch (Exception e) {
-            log.error("调用 RAG 服务失败 query={} topK={}", query, k, e);
+            if (isReadTimeout(e)) {
+                // 预检索超时不中断对话；Agent 仍可通过 search_knowledge 兜底
+                log.warn("调用 RAG 服务读超时 query={} topK={}，返回空结果",
+                        query, k);
+            } else {
+                log.error("调用 RAG 服务失败 query={} topK={}", query, k, e);
+            }
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * 判断异常是否为 WebClient / Netty 读超时。
+     *
+     * @param e 捕获的异常
+     * @return true 表示读超时
+     */
+    private boolean isReadTimeout(Throwable e) {
+        Throwable cur = e;
+        while (cur != null) {
+            if (cur instanceof io.netty.handler.timeout.ReadTimeoutException) {
+                return true;
+            }
+            // Reactor Netty 也可能包装为 ResponseTimeoutException
+            if (cur.getClass().getSimpleName().contains("Timeout")) {
+                return true;
+            }
+            cur = cur.getCause();
+        }
+        return false;
     }
 }

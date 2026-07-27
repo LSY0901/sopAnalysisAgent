@@ -45,6 +45,7 @@ public class ChatController {
             @RequestParam(required = false) String sessionId,
             @RequestParam String query) {
         String sid = blankToUuid(sessionId);
+        log.info("chatSync start sessionId={} query={}", sid, query);
         try {
             String answer = sopChatFacade.chatSync(sid, query);
             return Result.success(Map.of("sessionId", sid, "answer", answer));
@@ -68,13 +69,17 @@ public class ChatController {
             @RequestParam(required = false) String sessionId,
             @RequestParam String query) {
         String sid = blankToUuid(sessionId);
-        return Mono.fromCallable(() -> sopChatFacade.chatStream(sid, query))
-                .flatMapMany(flux -> flux)
-                .onErrorResume(e -> {
-                    log.error("chatStream failed sessionId={}", sid, e);
-                    return Flux.just(clearMessage(e));
-                })
-                .concatWithValues("[DONE]");
+        log.info("chatStream start sessionId={} query={}", sid, query);
+        // 先推一个空注释式心跳，避免浏览器 Network 长期显示 0 B transferred
+        return Flux.just("")
+                .concatWith(Mono.fromCallable(() -> sopChatFacade.chatStream(sid, query))
+                        .flatMapMany(flux -> flux)
+                        .onErrorResume(e -> {
+                            log.error("chatStream failed sessionId={}", sid, e);
+                            return Flux.just(clearMessage(e));
+                        }))
+                .concatWithValues("[DONE]")
+                .doOnComplete(() -> log.info("chatStream done sessionId={}", sid));
     }
 
     /**
