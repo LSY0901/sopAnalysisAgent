@@ -23,7 +23,6 @@ agentscope:
 
 sop:
   agent:
-    model: qwen-plus
     temperature: 0.2
     workspace: .agentscope/workspace
 

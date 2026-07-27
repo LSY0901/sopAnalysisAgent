@@ -62,7 +62,7 @@
         </dependency>
         <dependency>
             <groupId>io.agentscope</groupId>
-            <artifactId>agentscope-dashscope-spring-boot-starter</artifactId>
+            <artifactId>agentscope-openai-spring-boot-starter</artifactId>
             <version>${agentscope.version}</version>
         </dependency>
         <dependency>
@@ -70,9 +70,10 @@
             <artifactId>agentscope-harness</artifactId>
             <version>${agentscope.version}</version>
         </dependency>
+        <!--openai 兼容DeepSeek、Kimi、GLM等 模型扩展-->
         <dependency>
             <groupId>io.agentscope</groupId>
-            <artifactId>agentscope-extensions-model-dashscope</artifactId>
+            <artifactId>agentscope-extensions-model-openai</artifactId>
             <version>${agentscope.version}</version>
         </dependency>
         <dependency>
