@@ -3,6 +3,7 @@ package org.example.sopanalysisagent.client;
 import lombok.extern.slf4j.Slf4j;
 import org.example.sopanalysisagent.common.Constants;
 import org.example.sopanalysisagent.model.dto.RagResult;
+import org.example.sopanalysisagent.model.dto.RagSearchOutcome;
 import org.example.sopanalysisagent.model.dto.RagSearchReq;
 import org.example.sopanalysisagent.model.dto.RagSearchResp;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -80,6 +81,20 @@ public class PythonRagClient {
     }
 
     public List<RagResult> search(String query, Integer topK) {
+        return searchOutcome(query, topK).getHits();
+    }
+
+    /**
+     * 检索 SOP 知识库（阻塞等待到底座返回）。
+     * <p>
+     * 只有返回 {@link RagSearchOutcome#isFailed()} 为 true 时才允许兜底；
+     * 成功（即使为空）都必须按成功处理，不得误判为失败。
+     *
+     * @param query 已改写的检索 query
+     * @param topK  返回条数；为空时使用默认值
+     * @return 成功（含空结果）或失败的包装结果，永不返回 null
+     */
+    public RagSearchOutcome searchOutcome(String query, Integer topK) {
         int k = (topK == null || topK <= 0) ? defaultTopK : topK;
         RagSearchReq req = new RagSearchReq(query, k);
         try {
@@ -90,16 +105,19 @@ public class PythonRagClient {
                     .bodyToMono(RagSearchResp.class)
                     .block();
             List<RagResult> results = resp == null ? null : resp.getResults();
-            return results == null ? Collections.emptyList() : results;
+            return RagSearchOutcome.success(
+                    results == null ? Collections.emptyList() : results);
         } catch (Exception e) {
-            if (isReadTimeout(e)) {
-                // 预检索超时不中断对话；Agent 仍可通过 search_knowledge 兜底
-                log.warn("调用 RAG 服务读超时 query={} topK={}，返回空结果",
+            boolean timeout = isReadTimeout(e);
+            if (timeout) {
+                // 预检索超时不中断对话；调用方看到 failed=true 后再兜底
+                log.warn("调用 RAG 服务读超时 query={} topK={}，标记为检索失败",
                         query, k);
             } else {
                 log.error("调用 RAG 服务失败 query={} topK={}", query, k, e);
             }
-            return Collections.emptyList();
+            return RagSearchOutcome.failure(timeout,
+                    e == null ? "unknown" : e.toString());
         }
     }
 
