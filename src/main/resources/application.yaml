@@ -23,6 +23,13 @@ agentscope:
         name: SOP Analysis Agent
         description: SOP 问答与工单助手（rewrite → retrieve → answer）
 
+mcp:
+  server:
+    enabled: true
+    name: "SOP-Analysis-MCP-Server"
+    version: "1.0.0"
+    endpoint: /mcp
+
 sop:
   agent:
     temperature: 0.2

@@ -8,12 +8,12 @@ Spring Boot 3.3.5 + Java 21 + AgentScope 2.0.0 (A2A) 工业 SOP 问答与工单 
 
 - **Backend**: Spring Boot 3.3.5 / Java 21 / Maven 3.9+ / Lombok
 - **AI & Agent**: AgentScope 2.0.0 (`agentscope-a2a-spring-boot-starter`, `ReActAgent`, `HarnessAgent`)，**已彻底移除 Spring AI**
-- **Integration**: A2A (Agent-to-Agent) 协议，暴露 Agent Card 与 JSON-RPC 调用能力
+- **Integration**: A2A (Agent-to-Agent) 协议与 MCP (Model Context Protocol) 传输协议（支持 HTTP+SSE），对外暴露 Agent Card、JSON-RPC 以及标准 MCP Server 能力
 - **Database & ORM**: PostgreSQL (`localhost:5432/agent_db`，schema `agent`) + MyBatis-Plus 3.5.7
 - **External RAG**: 外部 Python RAG 检索微服务 (`localhost:8000`)，负责向量化（BGE-M3）与重排（BGE-Reranker）
 - **HTTP Client**: WebClient (Reactor Netty)，响应式调用 RAG / MES / ERP 服务
 - **Serialization**: Fastjson 2.0.40
-- **Default Port**: `9003`（Agent Card: `http://localhost:9003/.well-known/agent-card.json`）
+- **Default Port**: `9003`（Agent Card: `http://localhost:9003/.well-known/agent-card.json`；无状态 MCP: `http://localhost:9003/mcp`）
 
 ## Commands
 

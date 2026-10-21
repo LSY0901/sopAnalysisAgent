@@ -42,6 +42,9 @@ public class PreRetrieveMiddleware implements MiddlewareBase {
     /** RuntimeContext / Reactor Context 中存放 RAG 是否失败的 key */
     public static final String CTX_RAG_FAILED = "rag_failed";
 
+    /** RuntimeContext 中存放 RAG 原始命中列表的 key */
+    public static final String CTX_RAG_HITS = "rag_hits";
+
     private static final String RAG_PREFIX =
             "以下是检索到的 SOP 知识（必须优先依据它作答，并标注来源；"
                     + "即使后续工具返回未检索到，也仍以此处知识为准）：\n";
@@ -150,6 +153,9 @@ public class PreRetrieveMiddleware implements MiddlewareBase {
         if (ctx != null && !isBlank(ragText)) {
             ctx.put(CTX_RAG, ragText);
             ctx.put(CTX_RAG_FAILED, failed);
+            if (outcome.getHits() != null) {
+                ctx.put(CTX_RAG_HITS, outcome.getHits());
+            }
         }
         return new RetrieveHold(input, ragText, failed);
     }
